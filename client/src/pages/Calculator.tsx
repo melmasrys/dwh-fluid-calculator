@@ -476,9 +476,26 @@ export default function Calculator() {
   };
 
   const handleWorkloadChange = (key: keyof WorkloadDistribution, value: number) => {
-    const updated = { ...workloadDistribution, [key]: value };
+    const updated = { ...workloadDistribution, [key]: Math.max(0, Math.min(100, value)) };
     const total = Object.values(updated).reduce((a, b) => a + b, 0);
-    if (total === 100) {
+    
+    // If total exceeds 100, normalize all values proportionally
+    if (total > 100) {
+      const scale = 100 / total;
+      const normalized = Object.entries(updated).reduce((acc, [k, v]) => {
+        acc[k as keyof WorkloadDistribution] = Math.round(v * scale);
+        return acc;
+      }, {} as WorkloadDistribution);
+      
+      // Adjust for rounding errors
+      const newTotal = Object.values(normalized).reduce((a, b) => a + b, 0);
+      if (newTotal !== 100) {
+        const diff = 100 - newTotal;
+        normalized[key] = Math.max(0, normalized[key] + diff);
+      }
+      
+      setWorkloadDistribution(normalized);
+    } else {
       setWorkloadDistribution(updated);
     }
   };
