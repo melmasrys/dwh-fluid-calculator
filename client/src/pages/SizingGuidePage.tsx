@@ -114,7 +114,7 @@ export default function SizingGuidePage() {
 
           <div className="control-group">
             <label>Region</label>
-            <select value={config.region.id} onChange={(e) => handleRegionChange(e.target.value)}>
+            <select key={selectedGeo} value={config.region.id} onChange={(e) => handleRegionChange(e.target.value)}>
               {filteredRegions.map(r => (
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
