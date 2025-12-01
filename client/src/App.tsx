@@ -7,6 +7,8 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import DesignPreview from "./pages/DesignPreview";
 import Calculator from "./pages/Calculator";
+import ComparisonPage from "./pages/ComparisonPage";
+import SizingGuidePage from "./pages/SizingGuidePage";
 
 
 function Router() {
@@ -15,6 +17,8 @@ function Router() {
       <Route path={"/"} component={Calculator} />
       <Route path={"/preview"} component={DesignPreview} />
       <Route path={"/home"} component={Home} />
+      <Route path={"/comparison"} component={ComparisonPage} />
+      <Route path={"/sizing"} component={SizingGuidePage} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

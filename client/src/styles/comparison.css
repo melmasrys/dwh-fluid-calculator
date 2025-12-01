@@ -1,0 +1,310 @@
+/* Comparison Page Styles */
+
+.comparison-page {
+  width: 100%;
+  background: linear-gradient(135deg, #0f172a 0%, #1a1f3a 100%);
+  color: #e2e8f0;
+}
+
+.comparison-hero {
+  padding: 80px 20px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(0, 212, 170, 0.1) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(0, 212, 170, 0.2);
+}
+
+.hero-content {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.badge {
+  display: inline-block;
+  padding: 8px 16px;
+  background: rgba(0, 212, 170, 0.2);
+  border: 1px solid #00d4aa;
+  border-radius: 20px;
+  color: #00d4aa;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.comparison-hero h1 {
+  font-size: 56px;
+  font-weight: 700;
+  margin: 20px 0;
+  line-height: 1.2;
+}
+
+.comparison-hero h1 .highlight {
+  color: #00d4aa;
+}
+
+.comparison-hero p {
+  font-size: 18px;
+  color: #cbd5e1;
+  margin-bottom: 30px;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: #00d4aa;
+  color: #0f172a;
+}
+
+.btn-primary:hover {
+  background: #00b894;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 212, 170, 0.3);
+}
+
+.btn-outline {
+  background: transparent;
+  color: #00d4aa;
+  border: 2px solid #00d4aa;
+}
+
+.btn-outline:hover {
+  background: rgba(0, 212, 170, 0.1);
+}
+
+/* Verdict Section */
+
+.verdict-section {
+  padding: 80px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.verdict-content h2 {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+.verdict-content h2 .highlight {
+  color: #00d4aa;
+}
+
+.verdict-text {
+  font-size: 18px;
+  color: #cbd5e1;
+  margin-bottom: 50px;
+  line-height: 1.6;
+}
+
+.platform-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.platform-card {
+  padding: 30px;
+  border-radius: 12px;
+  border-left: 4px solid;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.platform-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.platform-card.fabric {
+  border-left-color: #00d4aa;
+}
+
+.platform-card.synapse {
+  border-left-color: #0078d4;
+}
+
+.platform-card.databricks {
+  border-left-color: #ff6b35;
+}
+
+.card-icon {
+  font-size: 32px;
+  margin-bottom: 15px;
+}
+
+.platform-card h3 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.card-spec {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-spec:last-child {
+  border-bottom: none;
+}
+
+.card-spec .label {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.card-spec .value {
+  color: #00d4aa;
+  font-weight: 600;
+}
+
+/* Specifications Section */
+
+.specifications-section {
+  padding: 80px 20px;
+  background: rgba(0, 212, 170, 0.05);
+  border-top: 1px solid rgba(0, 212, 170, 0.2);
+  border-bottom: 1px solid rgba(0, 212, 170, 0.2);
+}
+
+.specs-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.specifications-section h2 {
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+.specifications-section > div > p {
+  color: #cbd5e1;
+  margin-bottom: 40px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 212, 170, 0.2);
+}
+
+.specifications-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.specifications-table thead {
+  background: rgba(0, 212, 170, 0.1);
+  border-bottom: 2px solid rgba(0, 212, 170, 0.2);
+}
+
+.specifications-table th {
+  padding: 20px;
+  text-align: left;
+  font-weight: 600;
+  color: #00d4aa;
+}
+
+.specifications-table th.fabric-col {
+  color: #00d4aa;
+}
+
+.specifications-table th.synapse-col {
+  color: #0078d4;
+}
+
+.specifications-table th.databricks-col {
+  color: #ff6b35;
+}
+
+.specifications-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+}
+
+.specifications-table td.feature-name {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.specifications-table tbody tr:hover {
+  background: rgba(0, 212, 170, 0.05);
+}
+
+/* CTA Section */
+
+.cta-section {
+  padding: 80px 20px;
+  text-align: center;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 212, 170, 0.1) 100%);
+}
+
+.cta-section h2 {
+  font-size: 42px;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+.cta-section p {
+  font-size: 18px;
+  color: #cbd5e1;
+  margin-bottom: 30px;
+}
+
+.btn-large {
+  padding: 16px 40px;
+  font-size: 18px;
+}
+
+/* Responsive Design */
+
+@media (max-width: 768px) {
+  .comparison-hero h1 {
+    font-size: 36px;
+  }
+
+  .verdict-content h2 {
+    font-size: 32px;
+  }
+
+  .specifications-section h2 {
+    font-size: 28px;
+  }
+
+  .cta-section h2 {
+    font-size: 32px;
+  }
+
+  .specifications-table th,
+  .specifications-table td {
+    padding: 12px 10px;
+    font-size: 14px;
+  }
+
+  .platform-cards {
+    grid-template-columns: 1fr;
+  }
+}
