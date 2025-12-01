@@ -640,9 +640,9 @@ export default function Calculator() {
                   </Label>
                   <RadioGroup value={queryComplexity} onValueChange={(v) => setQueryComplexity(v as QueryComplexity)} className="grid grid-cols-3 gap-2">
                     {(["simple", "moderate", "complex"] as const).map((level) => (
-                      <div key={level} className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                      <div key={level} className="flex items-center space-x-2 px-2 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
                         <RadioGroupItem value={level} id={level} />
-                        <Label htmlFor={level} className="cursor-pointer text-sm text-slate-300 capitalize">{level}</Label>
+                        <Label htmlFor={level} className="cursor-pointer text-xs text-slate-300 capitalize whitespace-nowrap">{level}</Label>
                       </div>
                     ))}
                   </RadioGroup>
@@ -657,9 +657,9 @@ export default function Calculator() {
                   </Label>
                   <RadioGroup value={ingestionType} onValueChange={(v) => setIngestionType(v as IngestionType)} className="grid grid-cols-2 gap-2">
                     {(["batch", "hourly", "realtime", "ondemand"] as const).map((type) => (
-                      <div key={type} className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                      <div key={type} className="flex items-center space-x-2 px-2 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
                         <RadioGroupItem value={type} id={type} />
-                        <Label htmlFor={type} className="cursor-pointer text-sm text-slate-300 capitalize">{type}</Label>
+                        <Label htmlFor={type} className="cursor-pointer text-xs text-slate-300 capitalize whitespace-nowrap">{type.replace("-", " ")}</Label>
                       </div>
                     ))}
                   </RadioGroup>
@@ -696,9 +696,9 @@ export default function Calculator() {
                   </Label>
                   <RadioGroup value={slaRequirement} onValueChange={(v) => setSLARequirement(v as SLARequirement)} className="grid grid-cols-2 gap-2">
                     {(["best-effort", "standard", "premium", "mission-critical"] as const).map((sla) => (
-                      <div key={sla} className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                      <div key={sla} className="flex items-center space-x-1 px-2 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
                         <RadioGroupItem value={sla} id={sla} />
-                        <Label htmlFor={sla} className="cursor-pointer text-xs text-slate-300 capitalize">{sla.replace("-", " ")}</Label>
+                        <Label htmlFor={sla} className="cursor-pointer text-xs text-slate-300 capitalize whitespace-nowrap">{sla.replace("-", " ")}</Label>
                       </div>
                     ))}
                   </RadioGroup>
