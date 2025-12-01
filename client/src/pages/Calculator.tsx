@@ -13,6 +13,7 @@ import jsPDF from "jspdf";
 type Platform = "fabric" | "synapse" | "databricks";
 type QueryComplexity = "simple" | "complex";
 type IngestionType = "batch" | "streaming";
+type TierType = "Minimum" | "Balanced" | "Performance";
 
 interface SizingResult {
   sku: string;
@@ -20,7 +21,7 @@ interface SizingResult {
   memory: string;
   storage: string;
   cost: number;
-  tier: "Minimum" | "Balanced" | "Performance";
+  tier: TierType;
 }
 
 const FABRIC_SKUS = [
@@ -55,7 +56,7 @@ const SYNAPSE_SKUS = [
 ];
 
 const DATABRICKS_CLUSTERS = [
-  { name: "2X-Small", dbus: 4, cost: 250 }, // Approx
+  { name: "2X-Small", dbus: 4, cost: 250 },
   { name: "X-Small", dbus: 8, cost: 500 },
   { name: "Small", dbus: 16, cost: 1000 },
   { name: "Medium", dbus: 32, cost: 2000 },
@@ -68,10 +69,14 @@ const DATABRICKS_CLUSTERS = [
 
 // --- Helper Functions ---
 
-const calculateFabric = (tb: number, users: number, complexity: QueryComplexity, ingestion: IngestionType): SizingResult => {
+const calculateFabric = (tb: number, users: number, complexity: QueryComplexity, ingestion: IngestionType, tier: TierType): SizingResult => {
   let score = (tb * 2) + (users * 0.5);
   if (complexity === "complex") score *= 1.5;
   if (ingestion === "streaming") score *= 1.2;
+  
+  // Apply tier multiplier
+  if (tier === "Minimum") score *= 0.6;
+  else if (tier === "Performance") score *= 1.5;
   
   let skuIndex = 0;
   if (score < 10) skuIndex = 1;
@@ -90,14 +95,18 @@ const calculateFabric = (tb: number, users: number, complexity: QueryComplexity,
     memory: `${sku.cores * 8} GB`,
     storage: "OneLake (Unlimited)",
     cost: sku.cost,
-    tier: complexity === "complex" ? "Performance" : "Balanced"
+    tier: tier
   };
 };
 
-const calculateSynapse = (tb: number, users: number, complexity: QueryComplexity, ingestion: IngestionType): SizingResult => {
+const calculateSynapse = (tb: number, users: number, complexity: QueryComplexity, ingestion: IngestionType, tier: TierType): SizingResult => {
   let requiredSlots = users * (complexity === "complex" ? 5 : 3);
   let requiredDwu = Math.max(tb * 100, requiredSlots * 15);
   if (ingestion === "streaming") requiredDwu *= 1.3;
+  
+  // Apply tier multiplier
+  if (tier === "Minimum") requiredDwu *= 0.6;
+  else if (tier === "Performance") requiredDwu *= 1.5;
   
   let sku = SYNAPSE_SKUS.find(s => s.dwu >= requiredDwu) || SYNAPSE_SKUS[SYNAPSE_SKUS.length - 1];
 
@@ -107,14 +116,18 @@ const calculateSynapse = (tb: number, users: number, complexity: QueryComplexity
     memory: `${Math.round(sku.dwu * 0.6)} GB`,
     storage: "Unlimited",
     cost: sku.cost,
-    tier: complexity === "complex" ? "Performance" : "Balanced"
+    tier: tier
   };
 };
 
-const calculateDatabricks = (tb: number, users: number, complexity: QueryComplexity, ingestion: IngestionType): SizingResult => {
+const calculateDatabricks = (tb: number, users: number, complexity: QueryComplexity, ingestion: IngestionType, tier: TierType): SizingResult => {
   let score = (tb * 1.5) + (users * 0.8);
   if (complexity === "complex") score *= 1.4;
   if (ingestion === "streaming") score *= 1.1;
+  
+  // Apply tier multiplier
+  if (tier === "Minimum") score *= 0.6;
+  else if (tier === "Performance") score *= 1.5;
   
   let skuIndex = 0;
   if (score < 20) skuIndex = 1;
@@ -132,24 +145,13 @@ const calculateDatabricks = (tb: number, users: number, complexity: QueryComplex
     memory: `${sku.dbus * 8} GB`,
     storage: "Data Lake",
     cost: sku.cost,
-    tier: complexity === "complex" ? "Performance" : "Balanced"
+    tier: tier
   };
 };
 
 // --- Components ---
 
-const ResultCard = ({ title, result, icon: Icon }: { title: string, result: SizingResult, icon: any }) => {
-  const [selectedTier, setSelectedTier] = useState<"Minimum" | "Balanced" | "Performance">("Balanced");
-  
-  // Calculate sizing for each tier
-  const getTierData = (tier: "Minimum" | "Balanced" | "Performance") => {
-    // For now, return the current result - in a real app, you'd calculate all three
-    return result;
-  };
-  
-  const tierData = getTierData(selectedTier);
-  
-  return (
+const ResultCard = ({ title, result, icon: Icon }: { title: string, result: SizingResult, icon: any }) => (
   <div className="glass-panel rounded-2xl p-6 flex flex-col h-full transition-all hover:scale-[1.02] hover:shadow-2xl hover:border-teal-500/30 group">
     <div className="flex items-center gap-3 mb-4">
       <div className="p-2 rounded-lg bg-gradient-to-br from-teal-500/20 to-indigo-500/20 text-teal-300">
@@ -158,45 +160,26 @@ const ResultCard = ({ title, result, icon: Icon }: { title: string, result: Sizi
       <h3 className="text-lg font-bold font-heading tracking-wide text-white">{title}</h3>
     </div>
     
-    <div className="mb-6 pb-4 border-b border-white/10">
-      <div className="flex gap-2">
-        {(["Minimum", "Balanced", "Performance"] as const).map((tier) => (
-          <button
-            key={tier}
-            onClick={() => setSelectedTier(tier)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-              selectedTier === tier
-                ? "bg-teal-500/20 border border-teal-500/50 text-teal-300"
-                : "bg-slate-900/30 border border-white/10 text-slate-400 hover:border-white/20"
-            }`}
-          >
-            {tier === "Balanced" && selectedTier === tier && "✓ "}
-            {tier}
-          </button>
-        ))}
-      </div>
-    </div>
-    
     <div className="space-y-6 flex-grow">
       <div>
         <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Recommended SKU</div>
         <div className="text-4xl font-bold text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-          {tierData.sku}
+          {result.sku}
         </div>
       </div>
 
       <div className="space-y-4 font-mono text-sm">
         <div className="flex justify-between items-center p-3 rounded-lg bg-slate-900/30 border border-white/5">
           <span className="text-slate-400">Compute Cores</span>
-          <span className="font-bold text-teal-200">{tierData.cores} vCores</span>
+          <span className="font-bold text-teal-200">{result.cores} vCores</span>
         </div>
         <div className="flex justify-between items-center p-3 rounded-lg bg-slate-900/30 border border-white/5">
           <span className="text-slate-400">Memory</span>
-          <span className="font-bold text-indigo-200">{tierData.memory}</span>
+          <span className="font-bold text-indigo-200">{result.memory}</span>
         </div>
         <div className="flex justify-between items-center p-3 rounded-lg bg-slate-900/30 border border-white/5">
           <span className="text-slate-400">Est. Cost</span>
-          <span className="font-bold text-white">${tierData.cost.toLocaleString()}/mo</span>
+          <span className="font-bold text-white">${result.cost.toLocaleString()}/mo</span>
         </div>
       </div>
     </div>
@@ -204,18 +187,17 @@ const ResultCard = ({ title, result, icon: Icon }: { title: string, result: Sizi
     <div className="mt-6 pt-4 border-t border-white/10">
       <div className="flex justify-between items-center">
         <span className="text-xs font-medium text-slate-400 uppercase">Tier</span>
-        <span className="text-sm font-bold text-white">{tierData.tier}</span>
+        <span className="text-sm font-bold text-white">{result.tier}</span>
       </div>
       <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
         <div 
           className="h-full bg-gradient-to-r from-teal-500 to-indigo-500" 
-          style={{ width: tierData.tier === "Performance" ? "90%" : tierData.tier === "Balanced" ? "60%" : "30%" }}
+          style={{ width: result.tier === "Performance" ? "90%" : result.tier === "Balanced" ? "60%" : "30%" }}
         ></div>
       </div>
     </div>
   </div>
-  );
-};
+);
 
 // Helper function to convert GB to TB for display
 const formatDataVolume = (gb: number): string => {
@@ -237,10 +219,11 @@ export default function Calculator() {
   const [queryComplexity, setQueryComplexity] = useState<QueryComplexity>("simple");
   const [ingestionType, setIngestionType] = useState<IngestionType>("batch");
   const [dataVolumeInput, setDataVolumeInput] = useState("1024");
+  const [selectedTier, setSelectedTier] = useState<TierType>("Balanced");
 
-  const [fabricResult, setFabricResult] = useState<SizingResult>(calculateFabric(1, 20, "simple", "batch"));
-  const [synapseResult, setSynapseResult] = useState<SizingResult>(calculateSynapse(1, 20, "simple", "batch"));
-  const [databricksResult, setDatabricksResult] = useState<SizingResult>(calculateDatabricks(1, 20, "simple", "batch"));
+  const [fabricResult, setFabricResult] = useState<SizingResult>(calculateFabric(1, 20, "simple", "batch", "Balanced"));
+  const [synapseResult, setSynapseResult] = useState<SizingResult>(calculateSynapse(1, 20, "simple", "batch", "Balanced"));
+  const [databricksResult, setDatabricksResult] = useState<SizingResult>(calculateDatabricks(1, 20, "simple", "batch", "Balanced"));
 
   const handleDataVolumeChange = (value: number[]) => {
     setDataVolumeGB(value);
@@ -258,10 +241,10 @@ export default function Calculator() {
 
   useEffect(() => {
     const tbValue = convertToTB(dataVolumeGB[0]);
-    setFabricResult(calculateFabric(tbValue, concurrency[0], queryComplexity, ingestionType));
-    setSynapseResult(calculateSynapse(tbValue, concurrency[0], queryComplexity, ingestionType));
-    setDatabricksResult(calculateDatabricks(tbValue, concurrency[0], queryComplexity, ingestionType));
-  }, [dataVolumeGB, concurrency, queryComplexity, ingestionType]);
+    setFabricResult(calculateFabric(tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier));
+    setSynapseResult(calculateSynapse(tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier));
+    setDatabricksResult(calculateDatabricks(tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier));
+  }, [dataVolumeGB, concurrency, queryComplexity, ingestionType, selectedTier]);
 
   const handleExport = async () => {
     const element = document.getElementById("calculator-results");
@@ -374,13 +357,13 @@ export default function Calculator() {
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-slate-300">Query Complexity</Label>
                   <RadioGroup value={queryComplexity} onValueChange={(v) => setQueryComplexity(v as QueryComplexity)} className="grid grid-cols-2 gap-3">
-                    <div className={`flex items-center justify-center space-x-2 border rounded-lg p-3 cursor-pointer transition-all ${queryComplexity === 'simple' ? 'bg-teal-500/20 border-teal-500/50' : 'bg-slate-900/30 border-white/5 hover:bg-white/5'}`}>
-                      <RadioGroupItem value="simple" id="simple" className="sr-only" />
-                      <Label htmlFor="simple" className="cursor-pointer text-sm font-medium text-white">Simple</Label>
+                    <div className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                      <RadioGroupItem value="simple" id="simple" />
+                      <Label htmlFor="simple" className="cursor-pointer text-sm text-slate-300">Simple</Label>
                     </div>
-                    <div className={`flex items-center justify-center space-x-2 border rounded-lg p-3 cursor-pointer transition-all ${queryComplexity === 'complex' ? 'bg-teal-500/20 border-teal-500/50' : 'bg-slate-900/30 border-white/5 hover:bg-white/5'}`}>
-                      <RadioGroupItem value="complex" id="complex" className="sr-only" />
-                      <Label htmlFor="complex" className="cursor-pointer text-sm font-medium text-white">Complex</Label>
+                    <div className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                      <RadioGroupItem value="complex" id="complex" />
+                      <Label htmlFor="complex" className="cursor-pointer text-sm text-slate-300">Complex</Label>
                     </div>
                   </RadioGroup>
                 </div>
@@ -388,13 +371,13 @@ export default function Calculator() {
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-slate-300">Ingestion Type</Label>
                   <RadioGroup value={ingestionType} onValueChange={(v) => setIngestionType(v as IngestionType)} className="grid grid-cols-2 gap-3">
-                    <div className={`flex items-center justify-center space-x-2 border rounded-lg p-3 cursor-pointer transition-all ${ingestionType === 'batch' ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-slate-900/30 border-white/5 hover:bg-white/5'}`}>
-                      <RadioGroupItem value="batch" id="batch" className="sr-only" />
-                      <Label htmlFor="batch" className="cursor-pointer text-sm font-medium text-white">Batch</Label>
+                    <div className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                      <RadioGroupItem value="batch" id="batch" />
+                      <Label htmlFor="batch" className="cursor-pointer text-sm text-slate-300">Batch</Label>
                     </div>
-                    <div className={`flex items-center justify-center space-x-2 border rounded-lg p-3 cursor-pointer transition-all ${ingestionType === 'streaming' ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-slate-900/30 border-white/5 hover:bg-white/5'}`}>
-                      <RadioGroupItem value="streaming" id="streaming" className="sr-only" />
-                      <Label htmlFor="streaming" className="cursor-pointer text-sm font-medium text-white">Streaming</Label>
+                    <div className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                      <RadioGroupItem value="streaming" id="streaming" />
+                      <Label htmlFor="streaming" className="cursor-pointer text-sm text-slate-300">Streaming</Label>
                     </div>
                   </RadioGroup>
                 </div>
@@ -405,6 +388,34 @@ export default function Calculator() {
 
         {/* Results Section */}
         <div className="lg:col-span-8 space-y-8" id="calculator-results">
+          {/* Tier Selection Buttons */}
+          <div className="glass-panel rounded-2xl p-6 space-y-4">
+            <h3 className="text-lg font-bold font-heading text-white">Sizing Tier</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {(["Minimum", "Balanced", "Performance"] as const).map((tier) => (
+                <button
+                  key={tier}
+                  onClick={() => setSelectedTier(tier)}
+                  className={`px-4 py-3 rounded-lg font-bold uppercase tracking-wider text-sm transition-all border ${
+                    selectedTier === tier
+                      ? "bg-teal-500/20 border-teal-500/50 text-teal-300 shadow-lg shadow-teal-500/20"
+                      : "bg-slate-900/30 border-white/10 text-slate-300 hover:border-white/20"
+                  }`}
+                >
+                  {tier === "Balanced" && selectedTier === tier && "✓ "}
+                  {tier === "Minimum" && "Minimum Viable"}
+                  {tier === "Balanced" && "Balanced Choice"}
+                  {tier === "Performance" && "High Performance"}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400">
+              {selectedTier === "Minimum" && "Cost-effective option with basic performance. Suitable for non-critical workloads."}
+              {selectedTier === "Balanced" && "Recommended option balancing cost and performance. Suitable for most workloads."}
+              {selectedTier === "Performance" && "Premium option with maximum performance. Suitable for mission-critical workloads."}
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             <ResultCard title="Microsoft Fabric" result={fabricResult} icon={Sparkles} />
             <ResultCard title="Azure Synapse" result={synapseResult} icon={Activity} />
