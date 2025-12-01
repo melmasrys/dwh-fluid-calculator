@@ -1,5 +1,4 @@
 import { useLocation } from 'wouter';
-import { useCalculator } from '@/contexts/CalculatorContext';
 import { TECHNICAL_SPECIFICATIONS } from '@/data/specifications';
 import { ArrowRight, BarChart3, Zap } from 'lucide-react';
 import '../styles/comparison.css';
@@ -100,18 +99,29 @@ const calculateDatabricks = (tb: number, users: number, complexity: string, inge
 
 export default function ComparisonPage() {
   const [, setLocation] = useLocation();
-  const { state } = useCalculator();
+  
+  // Load state from localStorage
+  const savedState = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('calculatorState') || '{}') : {};
+  const dataVolumeGB = savedState.dataVolumeGB || 1024;
+  const concurrency = savedState.concurrency || 20;
+  const queryComplexity = savedState.queryComplexity || 'simple';
+  const ingestionType = savedState.ingestionType || 'batch';
+  const selectedTier = savedState.selectedTier || 'Balanced';
 
-  const tbValue = state.dataVolumeGB / 1024;
-  const fabricResult = calculateFabric(tbValue, state.concurrency, state.queryComplexity, state.ingestionType, state.selectedTier);
-  const synapseResult = calculateSynapse(tbValue, state.concurrency, state.queryComplexity, state.ingestionType, state.selectedTier);
-  const databricksResult = calculateDatabricks(tbValue, state.concurrency, state.queryComplexity, state.ingestionType, state.selectedTier);
+  const tbValue = dataVolumeGB / 1024;
+  const fabricResult = calculateFabric(tbValue, concurrency, queryComplexity, ingestionType, selectedTier);
+  const synapseResult = calculateSynapse(tbValue, concurrency, queryComplexity, ingestionType, selectedTier);
+  const databricksResult = calculateDatabricks(tbValue, concurrency, queryComplexity, ingestionType, selectedTier);
 
   const formatDataVolume = (gb: number): string => {
     if (gb >= 1024) {
       return `${(gb / 1024).toFixed(2)} TB`;
     }
     return `${gb} GB`;
+  };
+  
+  const formatQueryComplexity = (complexity: string): string => {
+    return complexity.charAt(0).toUpperCase() + complexity.slice(1);
   };
 
   return (
@@ -123,19 +133,19 @@ export default function ComparisonPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
             <div style={{ padding: '1rem', background: 'rgba(0,212,170,0.1)', borderRadius: '0.5rem', border: '1px solid rgba(0,212,170,0.3)' }}>
               <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '0.5rem' }}>Data Volume</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00d4aa' }}>{formatDataVolume(state.dataVolumeGB)}</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00d4aa' }}>{formatDataVolume(dataVolumeGB)}</div>
             </div>
             <div style={{ padding: '1rem', background: 'rgba(0,212,170,0.1)', borderRadius: '0.5rem', border: '1px solid rgba(0,212,170,0.3)' }}>
               <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '0.5rem' }}>Concurrent Users</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00d4aa' }}>{state.concurrency}</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00d4aa' }}>{concurrency}</div>
             </div>
             <div style={{ padding: '1rem', background: 'rgba(0,212,170,0.1)', borderRadius: '0.5rem', border: '1px solid rgba(0,212,170,0.3)' }}>
               <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '0.5rem' }}>Sizing Tier</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00d4aa' }}>{state.selectedTier}</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00d4aa' }}>{selectedTier}</div>
             </div>
             <div style={{ padding: '1rem', background: 'rgba(0,212,170,0.1)', borderRadius: '0.5rem', border: '1px solid rgba(0,212,170,0.3)' }}>
               <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '0.5rem' }}>Query Complexity</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00d4aa', textTransform: 'capitalize' }}>{state.queryComplexity}</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00d4aa' }}>{formatQueryComplexity(queryComplexity)}</div>
             </div>
           </div>
         </div>
@@ -146,7 +156,7 @@ export default function ComparisonPage() {
         <div className="verdict-content">
           <h2>Your Recommendations <span className="highlight">Based on Your Configuration</span></h2>
           <p className="verdict-text">
-            Based on <strong>{formatDataVolume(state.dataVolumeGB)}</strong> of data and <strong>{state.concurrency} concurrent users</strong>, here are the optimized SKU recommendations for each platform.
+            Based on <strong>{formatDataVolume(dataVolumeGB)}</strong> of data and <strong>{concurrency} concurrent users</strong>, here are the optimized SKU recommendations for each platform.
           </p>
 
           <div className="platform-cards">

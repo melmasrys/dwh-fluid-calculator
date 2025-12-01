@@ -4,7 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { CalculatorProvider } from "./contexts/CalculatorContext";
+// Context removed - using localStorage instead
 import Home from "./pages/Home";
 import DesignPreview from "./pages/DesignPreview";
 import Calculator from "./pages/Calculator";
@@ -40,13 +40,11 @@ function App() {
         defaultTheme="light"
         // switchable
       >
-        <CalculatorProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Navigation />
-            <Router />
-          </TooltipProvider>
-        </CalculatorProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Navigation />
+          <Router />
+        </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

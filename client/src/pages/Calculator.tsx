@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useCalculator } from "@/contexts/CalculatorContext";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -214,14 +213,16 @@ const convertToTB = (gb: number): number => {
 };
 
 export default function Calculator() {
-  const { state, updateState } = useCalculator();
-  const [dataVolumeGB, setDataVolumeGB] = useState([state.dataVolumeGB]);
-  const [concurrency, setConcurrency] = useState([state.concurrency]);
-  const [advancedMode, setAdvancedMode] = useState(state.advancedMode);
-  const [queryComplexity, setQueryComplexity] = useState<QueryComplexity>(state.queryComplexity);
-  const [ingestionType, setIngestionType] = useState<IngestionType>(state.ingestionType);
-  const [dataVolumeInput, setDataVolumeInput] = useState(state.dataVolumeGB.toString());
-  const [selectedTier, setSelectedTier] = useState<TierType>(state.selectedTier);
+  // Load state from localStorage
+  const savedState = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('calculatorState') || '{}') : {};
+  
+  const [dataVolumeGB, setDataVolumeGB] = useState([savedState.dataVolumeGB || 1024]);
+  const [concurrency, setConcurrency] = useState([savedState.concurrency || 20]);
+  const [advancedMode, setAdvancedMode] = useState(savedState.advancedMode || false);
+  const [queryComplexity, setQueryComplexity] = useState<QueryComplexity>(savedState.queryComplexity || "simple");
+  const [ingestionType, setIngestionType] = useState<IngestionType>(savedState.ingestionType || "batch");
+  const [dataVolumeInput, setDataVolumeInput] = useState((savedState.dataVolumeGB || 1024).toString());
+  const [selectedTier, setSelectedTier] = useState<TierType>(savedState.selectedTier || "Balanced");
 
   const [fabricResult, setFabricResult] = useState<SizingResult>(calculateFabric(1, 20, "simple", "batch", "Balanced"));
   const [synapseResult, setSynapseResult] = useState<SizingResult>(calculateSynapse(1, 20, "simple", "batch", "Balanced"));
@@ -230,7 +231,6 @@ export default function Calculator() {
   const handleDataVolumeChange = (value: number[]) => {
     setDataVolumeGB(value);
     setDataVolumeInput(value[0].toString());
-    updateState({ dataVolumeGB: value[0] });
   };
 
   const handleDataVolumeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -239,7 +239,6 @@ export default function Calculator() {
     const numValue = parseInt(value) || 0;
     if (numValue > 0 && numValue <= 512000) {
       setDataVolumeGB([numValue]);
-      updateState({ dataVolumeGB: numValue });
     }
   };
 
@@ -248,15 +247,17 @@ export default function Calculator() {
     setFabricResult(calculateFabric(tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier));
     setSynapseResult(calculateSynapse(tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier));
     setDatabricksResult(calculateDatabricks(tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier));
-    updateState({ 
+    // Save state to localStorage
+    const state = {
       dataVolumeGB: dataVolumeGB[0],
       concurrency: concurrency[0],
       queryComplexity,
       ingestionType,
       selectedTier,
       advancedMode
-    });
-  }, [dataVolumeGB, concurrency, queryComplexity, ingestionType, selectedTier, advancedMode, updateState]);
+    };
+    localStorage.setItem('calculatorState', JSON.stringify(state));
+  }, [dataVolumeGB, concurrency, queryComplexity, ingestionType, selectedTier, advancedMode]);
 
   const handleExport = async () => {
     const element = document.getElementById("calculator-results");
@@ -315,7 +316,7 @@ export default function Calculator() {
               </h2>
               <div className="flex items-center gap-2">
                 <Label htmlFor="advanced-mode" className="text-xs font-bold uppercase text-slate-400 cursor-pointer">Advanced</Label>
-                <Switch id="advanced-mode" checked={advancedMode} onCheckedChange={(checked) => { setAdvancedMode(checked); updateState({ advancedMode: checked }); }} className="data-[state=checked]:bg-teal-500" />
+                <Switch id="advanced-mode" checked={advancedMode} onCheckedChange={setAdvancedMode} className="data-[state=checked]:bg-teal-500" />
               </div>
             </div>
             
