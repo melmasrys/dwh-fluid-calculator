@@ -1,18 +1,14 @@
 {
-  "buildCommand": "pnpm build",
+  "buildCommand": "pnpm build && cp dist/public/_redirects dist/public/ || true",
   "outputDirectory": "./dist/public",
   "installCommand": "pnpm install",
   "framework": "vite",
   "cleanUrls": true,
   "trailingSlash": false,
-  "routes": [
+  "rewrites": [
     {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
