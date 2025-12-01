@@ -9,6 +9,7 @@ import DesignPreview from "./pages/DesignPreview";
 import Calculator from "./pages/Calculator";
 import ComparisonPage from "./pages/ComparisonPage";
 import SizingGuidePage from "./pages/SizingGuidePage";
+import Navigation from "./components/Navigation";
 
 
 function Router() {
@@ -40,6 +41,7 @@ function App() {
       >
         <TooltipProvider>
           <Toaster />
+          <Navigation />
           <Router />
         </TooltipProvider>
       </ThemeProvider>

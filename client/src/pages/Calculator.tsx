@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -138,17 +138,42 @@ const calculateDatabricks = (tb: number, users: number, complexity: QueryComplex
 
 // --- Components ---
 
-const ResultCard = ({ title, result, icon: Icon }: { title: string, result: SizingResult, icon: any }) => (
+const ResultCard = ({ title, result, icon: Icon }: { title: string, result: SizingResult, icon: any }) => {
+  const [selectedTier, setSelectedTier] = useState<"Minimum" | "Balanced" | "Performance">("Balanced");
+  
+  // Calculate sizing for each tier
+  const getTierData = (tier: "Minimum" | "Balanced" | "Performance") => {
+    // For now, return the current result - in a real app, you'd calculate all three
+    return result;
+  };
+  
+  const tierData = getTierData(selectedTier);
+  
+  return (
   <div className="glass-panel rounded-2xl p-6 flex flex-col h-full transition-all hover:scale-[1.02] hover:shadow-2xl hover:border-teal-500/30 group">
-    <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-gradient-to-br from-teal-500/20 to-indigo-500/20 text-teal-300">
-          <Icon size={20} />
-        </div>
-        <h3 className="text-lg font-bold font-heading tracking-wide text-white">{title}</h3>
+    <div className="flex items-center gap-3 mb-4">
+      <div className="p-2 rounded-lg bg-gradient-to-br from-teal-500/20 to-indigo-500/20 text-teal-300">
+        <Icon size={20} />
       </div>
-      <div className="px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-300 text-xs font-bold uppercase tracking-wider">
-        Recommended
+      <h3 className="text-lg font-bold font-heading tracking-wide text-white">{title}</h3>
+    </div>
+    
+    <div className="mb-6 pb-4 border-b border-white/10">
+      <div className="flex gap-2">
+        {(["Minimum", "Balanced", "Performance"] as const).map((tier) => (
+          <button
+            key={tier}
+            onClick={() => setSelectedTier(tier)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+              selectedTier === tier
+                ? "bg-teal-500/20 border border-teal-500/50 text-teal-300"
+                : "bg-slate-900/30 border border-white/10 text-slate-400 hover:border-white/20"
+            }`}
+          >
+            {tier === "Balanced" && selectedTier === tier && "✓ "}
+            {tier}
+          </button>
+        ))}
       </div>
     </div>
     
@@ -156,22 +181,22 @@ const ResultCard = ({ title, result, icon: Icon }: { title: string, result: Sizi
       <div>
         <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Recommended SKU</div>
         <div className="text-4xl font-bold text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-          {result.sku}
+          {tierData.sku}
         </div>
       </div>
 
       <div className="space-y-4 font-mono text-sm">
         <div className="flex justify-between items-center p-3 rounded-lg bg-slate-900/30 border border-white/5">
           <span className="text-slate-400">Compute Cores</span>
-          <span className="font-bold text-teal-200">{result.cores} vCores</span>
+          <span className="font-bold text-teal-200">{tierData.cores} vCores</span>
         </div>
         <div className="flex justify-between items-center p-3 rounded-lg bg-slate-900/30 border border-white/5">
           <span className="text-slate-400">Memory</span>
-          <span className="font-bold text-indigo-200">{result.memory}</span>
+          <span className="font-bold text-indigo-200">{tierData.memory}</span>
         </div>
         <div className="flex justify-between items-center p-3 rounded-lg bg-slate-900/30 border border-white/5">
           <span className="text-slate-400">Est. Cost</span>
-          <span className="font-bold text-white">${result.cost.toLocaleString()}/mo</span>
+          <span className="font-bold text-white">${tierData.cost.toLocaleString()}/mo</span>
         </div>
       </div>
     </div>
@@ -179,17 +204,18 @@ const ResultCard = ({ title, result, icon: Icon }: { title: string, result: Sizi
     <div className="mt-6 pt-4 border-t border-white/10">
       <div className="flex justify-between items-center">
         <span className="text-xs font-medium text-slate-400 uppercase">Tier</span>
-        <span className="text-sm font-bold text-white">{result.tier}</span>
+        <span className="text-sm font-bold text-white">{tierData.tier}</span>
       </div>
       <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
         <div 
           className="h-full bg-gradient-to-r from-teal-500 to-indigo-500" 
-          style={{ width: result.tier === "Performance" ? "90%" : result.tier === "Balanced" ? "60%" : "30%" }}
+          style={{ width: tierData.tier === "Performance" ? "90%" : tierData.tier === "Balanced" ? "60%" : "30%" }}
         ></div>
       </div>
     </div>
   </div>
-);
+  );
+};
 
 // Helper function to convert GB to TB for display
 const formatDataVolume = (gb: number): string => {
