@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { SizingConfig } from '@/types';
 import { calculateSizing } from '@/utils/calculations';
 import { getDefaultWorkloadProfile } from '@/data/workloads';
-import { getDefaultRegion } from '@/data/regions';
+import { getDefaultRegion, getDefaultGeo, GEOGRAPHIES, getRegionsByGeo } from '@/data/regions';
 import { WORKLOAD_PROFILES } from '@/data/workloads';
 import { REGIONS } from '@/data/regions';
 import '../styles/sizing-guide.css';
 
 export default function SizingGuidePage() {
+  const [selectedGeo, setSelectedGeo] = useState<string>(getDefaultGeo());
+  const [filteredRegions, setFilteredRegions] = useState(getRegionsByGeo(getDefaultGeo()));
   const [config, setConfig] = useState<SizingConfig>({
     dataVolumeGB: 2048,
     concurrentUsers: 50,
@@ -17,6 +19,16 @@ export default function SizingGuidePage() {
     queryComplexity: 'complex',
     ingestionType: 'batch',
   });
+
+  const handleGeoChange = (geo: string) => {
+    setSelectedGeo(geo);
+    const regions = getRegionsByGeo(geo);
+    setFilteredRegions(regions);
+    // Set region to first region in the selected geo
+    if (regions.length > 0) {
+      setConfig({ ...config, region: regions[0] });
+    }
+  };
 
   const result = calculateSizing(config);
 
@@ -92,9 +104,18 @@ export default function SizingGuidePage() {
           </div>
 
           <div className="control-group">
+            <label>Geography</label>
+            <select value={selectedGeo} onChange={(e) => handleGeoChange(e.target.value)}>
+              {GEOGRAPHIES.map(geo => (
+                <option key={geo} value={geo}>{geo}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="control-group">
             <label>Region</label>
             <select value={config.region.id} onChange={(e) => handleRegionChange(e.target.value)}>
-              {REGIONS.map(r => (
+              {filteredRegions.map(r => (
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
             </select>
