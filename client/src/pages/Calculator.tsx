@@ -1,19 +1,39 @@
-import { useState, useEffect } from "react";
+'use client';
+import React, { useState, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowRight, Info, Check, Download, Settings2, Sparkles, Zap, Activity, Input } from "lucide-react";
+import { ArrowRight, Info, Check, Download, Settings2, Sparkles, Zap, Activity, Input, HelpCircle, TrendingUp, Gauge } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
-// --- Types & Constants ---
+// --- Enhanced Types & Constants ---
 
 type Platform = "fabric" | "synapse" | "databricks";
-type QueryComplexity = "simple" | "complex";
-type IngestionType = "batch" | "streaming";
+type QueryComplexity = "simple" | "moderate" | "complex";
+type IngestionType = "batch" | "hourly" | "realtime" | "ondemand";
 type TierType = "Minimum" | "Balanced" | "Performance";
+type SLARequirement = "best-effort" | "standard" | "premium" | "mission-critical";
+
+interface WorkloadDistribution {
+  olap: number;
+  oltp: number;
+  etl: number;
+  ml: number;
+  realtime: number;
+}
+
+interface PlatformInfo {
+  description: string;
+  keyFeatures: string[];
+  useCases: string[];
+  scalingNotes: string;
+  maxConcurrentQueries: number;
+  maxUsers: number;
+  storageIncluded: string;
+}
 
 interface SizingResult {
   sku: string;
@@ -22,18 +42,22 @@ interface SizingResult {
   storage: string;
   cost: number;
   tier: TierType;
+  concurrentQueries: number;
+  maxUsers: number;
+  platformInfo: PlatformInfo;
 }
 
+// SKU Definitions with Enhanced Specifications
 const FABRIC_SKUS = [
-  { name: "F2", cores: 2, cost: 262.8 },
-  { name: "F4", cores: 4, cost: 525.6 },
-  { name: "F8", cores: 8, cost: 1051.2 },
-  { name: "F16", cores: 16, cost: 2102.4 },
-  { name: "F32", cores: 32, cost: 4204.8 },
-  { name: "F64", cores: 64, cost: 8409.6 },
-  { name: "F128", cores: 128, cost: 16819.2 },
-  { name: "F256", cores: 256, cost: 33638.4 },
-  { name: "F512", cores: 512, cost: 67276.8 },
+  { name: "F2", cores: 2, cost: 262.8, cu: 2 },
+  { name: "F4", cores: 4, cost: 525.6, cu: 4 },
+  { name: "F8", cores: 8, cost: 1051.2, cu: 8 },
+  { name: "F16", cores: 16, cost: 2102.4, cu: 16 },
+  { name: "F32", cores: 32, cost: 4204.8, cu: 32 },
+  { name: "F64", cores: 64, cost: 8409.6, cu: 64 },
+  { name: "F128", cores: 128, cost: 16819.2, cu: 128 },
+  { name: "F256", cores: 256, cost: 33638.4, cu: 256 },
+  { name: "F512", cores: 512, cost: 67276.8, cu: 512 },
 ];
 
 const SYNAPSE_SKUS = [
@@ -69,10 +93,82 @@ const DATABRICKS_CLUSTERS = [
 
 // --- Helper Functions ---
 
-const calculateFabric = (tb: number, users: number, complexity: QueryComplexity, ingestion: IngestionType, tier: TierType): SizingResult => {
+const getComplexityMultiplier = (complexity: QueryComplexity): number => {
+  switch (complexity) {
+    case "simple": return 1.0;
+    case "moderate": return 1.5;
+    case "complex": return 2.5;
+    default: return 1.0;
+  }
+};
+
+const getIngestionMultiplier = (ingestion: IngestionType): number => {
+  switch (ingestion) {
+    case "batch": return 1.0;
+    case "hourly": return 1.15;
+    case "realtime": return 1.4;
+    case "ondemand": return 0.9;
+    default: return 1.0;
+  }
+};
+
+const getSLAMultiplier = (sla: SLARequirement): number => {
+  switch (sla) {
+    case "best-effort": return 0.8;
+    case "standard": return 1.0;
+    case "premium": return 1.3;
+    case "mission-critical": return 1.6;
+    default: return 1.0;
+  }
+};
+
+const getWorkloadMultiplier = (distribution: WorkloadDistribution): number => {
+  const weights = {
+    olap: (distribution.olap / 100) * 1.2,
+    oltp: (distribution.oltp / 100) * 1.5,
+    etl: (distribution.etl / 100) * 1.3,
+    ml: (distribution.ml / 100) * 2.0,
+    realtime: (distribution.realtime / 100) * 1.8,
+  };
+  return Object.values(weights).reduce((a, b) => a + b, 0);
+};
+
+const getGrowthAdjustment = (growthRate: number): number => {
+  return 1 + growthRate / 100;
+};
+
+const formatDataVolume = (gb: number): string => {
+  if (gb >= 1024) {
+    return `${(gb / 1024).toFixed(2)} TB`;
+  }
+  return `${gb} GB`;
+};
+
+const convertToTB = (gb: number): number => {
+  return gb / 1024;
+};
+
+// Enhanced Calculation Functions with New Parameters
+const calculateFabric = (
+  tb: number,
+  users: number,
+  complexity: QueryComplexity,
+  ingestion: IngestionType,
+  tier: TierType,
+  peakUsageMultiplier: number,
+  slaRequirement: SLARequirement,
+  growthRate: number,
+  workloadDistribution: WorkloadDistribution
+): SizingResult => {
   let score = (tb * 2) + (users * 0.5);
-  if (complexity === "complex") score *= 1.5;
-  if (ingestion === "streaming") score *= 1.2;
+  
+  // Apply multipliers
+  score *= getComplexityMultiplier(complexity);
+  score *= getIngestionMultiplier(ingestion);
+  score *= peakUsageMultiplier;
+  score *= getSLAMultiplier(slaRequirement);
+  score *= getWorkloadMultiplier(workloadDistribution);
+  score *= getGrowthAdjustment(growthRate);
   
   // Apply tier multiplier
   if (tier === "Minimum") score *= 0.6;
@@ -88,6 +184,8 @@ const calculateFabric = (tb: number, users: number, complexity: QueryComplexity,
   else skuIndex = 7;
 
   const sku = FABRIC_SKUS[skuIndex];
+  const concurrentQueries = sku.cu * 2;
+  const maxUsers = sku.cu * 10;
   
   return {
     sku: sku.name,
@@ -95,35 +193,120 @@ const calculateFabric = (tb: number, users: number, complexity: QueryComplexity,
     memory: `${sku.cores * 8} GB`,
     storage: "OneLake (Unlimited)",
     cost: sku.cost,
-    tier: tier
+    tier: tier,
+    concurrentQueries,
+    maxUsers,
+    platformInfo: {
+      description: "Microsoft Fabric is an integrated analytics platform combining Power BI, Spark, Data Warehouse, and Real-time Analytics.",
+      keyFeatures: [
+        "Integrated Analytics Platform",
+        "Power BI Integration",
+        "Apache Spark Support",
+        "Data Warehouse",
+        "Real-time Analytics",
+        "Surge Protection",
+        "OneLake Storage"
+      ],
+      useCases: [
+        "Integrated analytics with Power BI",
+        "Spark-based data processing",
+        "Data warehouse analytics",
+        "Real-time data streaming",
+        "Multi-workload analytics"
+      ],
+      scalingNotes: "Linear performance scaling with CU increases. Surge protection prevents cost overruns. Monitor via Capacity Metrics app.",
+      maxConcurrentQueries: concurrentQueries,
+      maxUsers: maxUsers,
+      storageIncluded: `${sku.cu * 10} GB`
+    }
   };
 };
 
-const calculateSynapse = (tb: number, users: number, complexity: QueryComplexity, ingestion: IngestionType, tier: TierType): SizingResult => {
-  let requiredSlots = users * (complexity === "complex" ? 5 : 3);
+const calculateSynapse = (
+  tb: number,
+  users: number,
+  complexity: QueryComplexity,
+  ingestion: IngestionType,
+  tier: TierType,
+  peakUsageMultiplier: number,
+  slaRequirement: SLARequirement,
+  growthRate: number,
+  workloadDistribution: WorkloadDistribution
+): SizingResult => {
+  let requiredSlots = users * (getComplexityMultiplier(complexity) > 1.5 ? 5 : 3);
   let requiredDwu = Math.max(tb * 100, requiredSlots * 15);
-  if (ingestion === "streaming") requiredDwu *= 1.3;
+  
+  // Apply multipliers
+  requiredDwu *= getIngestionMultiplier(ingestion);
+  requiredDwu *= peakUsageMultiplier;
+  requiredDwu *= getSLAMultiplier(slaRequirement);
+  requiredDwu *= getWorkloadMultiplier(workloadDistribution);
+  requiredDwu *= getGrowthAdjustment(growthRate);
   
   // Apply tier multiplier
   if (tier === "Minimum") requiredDwu *= 0.6;
   else if (tier === "Performance") requiredDwu *= 1.5;
   
   let sku = SYNAPSE_SKUS.find(s => s.dwu >= requiredDwu) || SYNAPSE_SKUS[SYNAPSE_SKUS.length - 1];
+  
+  const concurrentQueries = Math.max(4, Math.floor(sku.dwu / 100));
+  const maxUsers = Math.max(10, Math.floor(sku.dwu / 50));
 
   return {
     sku: sku.name,
     cores: Math.round(sku.dwu / 15),
     memory: `${Math.round(sku.dwu * 0.6)} GB`,
-    storage: "Unlimited",
+    storage: "240 TB (Separate Billing)",
     cost: sku.cost,
-    tier: tier
+    tier: tier,
+    concurrentQueries,
+    maxUsers,
+    platformInfo: {
+      description: "Azure Synapse Analytics is an enterprise data warehouse with advanced query optimization and workload management.",
+      keyFeatures: [
+        "Enterprise Data Warehouse",
+        "Pause/Resume Compute",
+        "Workload Management",
+        "Advanced Query Optimization",
+        "Separate Compute & Storage",
+        "Massive Parallel Processing",
+        "PolyBase Integration"
+      ],
+      useCases: [
+        "Enterprise data warehouse",
+        "Complex analytics queries",
+        "BI and reporting",
+        "Data integration",
+        "Large-scale data processing"
+      ],
+      scalingNotes: "Pause compute to save costs. Linear performance scaling with DWU increases. Requires minimum 1TB for accurate testing.",
+      maxConcurrentQueries: concurrentQueries,
+      maxUsers: maxUsers,
+      storageIncluded: "240 TB"
+    }
   };
 };
 
-const calculateDatabricks = (tb: number, users: number, complexity: QueryComplexity, ingestion: IngestionType, tier: TierType): SizingResult => {
+const calculateDatabricks = (
+  tb: number,
+  users: number,
+  complexity: QueryComplexity,
+  ingestion: IngestionType,
+  tier: TierType,
+  peakUsageMultiplier: number,
+  slaRequirement: SLARequirement,
+  growthRate: number,
+  workloadDistribution: WorkloadDistribution
+): SizingResult => {
   let score = (tb * 1.5) + (users * 0.8);
-  if (complexity === "complex") score *= 1.4;
-  if (ingestion === "streaming") score *= 1.1;
+  
+  // Apply multipliers
+  score *= getComplexityMultiplier(complexity);
+  score *= getIngestionMultiplier(ingestion);
+  score *= peakUsageMultiplier;
+  score *= getSLAMultiplier(slaRequirement);
+  score *= getWorkloadMultiplier(workloadDistribution);
+  score *= getGrowthAdjustment(growthRate);
   
   // Apply tier multiplier
   if (tier === "Minimum") score *= 0.6;
@@ -138,20 +321,56 @@ const calculateDatabricks = (tb: number, users: number, complexity: QueryComplex
   else skuIndex = 6;
 
   const sku = DATABRICKS_CLUSTERS[skuIndex];
+  const concurrentQueries = sku.dbus / 2;
+  const maxUsers = sku.dbus;
 
   return {
     sku: sku.name,
     cores: sku.dbus * 2,
     memory: `${sku.dbus * 8} GB`,
-    storage: "Data Lake",
+    storage: "Data Lake (Separate Billing)",
     cost: sku.cost,
-    tier: tier
+    tier: tier,
+    concurrentQueries,
+    maxUsers,
+    platformInfo: {
+      description: "Azure Databricks is a data lakehouse platform supporting data engineering, analytics, and machine learning.",
+      keyFeatures: [
+        "Data Lakehouse Architecture",
+        "Apache Spark & Delta Lake",
+        "Machine Learning & AI",
+        "Serverless Option",
+        "Autoscaling",
+        "Photon Engine",
+        "Collaborative Notebooks"
+      ],
+      useCases: [
+        "Data lakehouse implementation",
+        "Machine learning pipelines",
+        "Advanced analytics",
+        "Data engineering",
+        "Real-time streaming analytics"
+      ],
+      scalingNotes: "Autoscaling reduces idle costs. Serverless option recommended for most workloads. Photon engine beneficial for SQL and complex transformations.",
+      maxConcurrentQueries: concurrentQueries,
+      maxUsers: maxUsers,
+      storageIncluded: "0 (Billed separately)"
+    }
   };
 };
 
 // --- Components ---
 
-const ResultCard = ({ title, result, icon: Icon }: { title: string, result: SizingResult, icon: any }) => (
+const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }) => (
+  <div className="group relative inline-block">
+    {children}
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 border border-white/20 rounded-lg text-xs text-slate-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+      {text}
+    </div>
+  </div>
+);
+
+const ResultCard = ({ title, result, icon: Icon }: { title: string; result: SizingResult; icon: any }) => (
   <div className="glass-panel rounded-2xl p-6 flex flex-col h-full transition-all hover:scale-[1.02] hover:shadow-2xl hover:border-teal-500/30 group">
     <div className="flex items-center gap-3 mb-4">
       <div className="p-2 rounded-lg bg-gradient-to-br from-teal-500/20 to-indigo-500/20 text-teal-300">
@@ -178,9 +397,25 @@ const ResultCard = ({ title, result, icon: Icon }: { title: string, result: Sizi
           <span className="font-bold text-indigo-200">{result.memory}</span>
         </div>
         <div className="flex justify-between items-center p-3 rounded-lg bg-slate-900/30 border border-white/5">
+          <span className="text-slate-400">Max Concurrent Queries</span>
+          <span className="font-bold text-purple-200">{result.concurrentQueries}</span>
+        </div>
+        <div className="flex justify-between items-center p-3 rounded-lg bg-slate-900/30 border border-white/5">
           <span className="text-slate-400">Est. Cost</span>
           <span className="font-bold text-white">${result.cost.toLocaleString()}/mo</span>
         </div>
+      </div>
+
+      <div className="pt-4 border-t border-white/10">
+        <div className="text-xs font-medium text-slate-400 uppercase mb-2">Platform Highlights</div>
+        <ul className="space-y-1 text-xs text-slate-300">
+          {result.platformInfo.keyFeatures.slice(0, 3).map((feature, i) => (
+            <li key={i} className="flex items-center gap-2">
+              <Check size={12} className="text-teal-400" />
+              {feature}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
     
@@ -199,23 +434,11 @@ const ResultCard = ({ title, result, icon: Icon }: { title: string, result: Sizi
   </div>
 );
 
-// Helper function to convert GB to TB for display
-const formatDataVolume = (gb: number): string => {
-  if (gb >= 1024) {
-    return `${(gb / 1024).toFixed(2)} TB`;
-  }
-  return `${gb} GB`;
-};
-
-// Helper function to convert display value to TB for calculations
-const convertToTB = (gb: number): number => {
-  return gb / 1024;
-};
-
 export default function Calculator() {
   // Load state from localStorage
   const savedState = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('calculatorState') || '{}') : {};
   
+  // Basic State
   const [dataVolumeGB, setDataVolumeGB] = useState([savedState.dataVolumeGB || 1024]);
   const [concurrency, setConcurrency] = useState([savedState.concurrency || 20]);
   const [advancedMode, setAdvancedMode] = useState(savedState.advancedMode || false);
@@ -224,9 +447,19 @@ export default function Calculator() {
   const [dataVolumeInput, setDataVolumeInput] = useState((savedState.dataVolumeGB || 1024).toString());
   const [selectedTier, setSelectedTier] = useState<TierType>(savedState.selectedTier || "Balanced");
 
-  const [fabricResult, setFabricResult] = useState<SizingResult>(calculateFabric(1, 20, "simple", "batch", "Balanced"));
-  const [synapseResult, setSynapseResult] = useState<SizingResult>(calculateSynapse(1, 20, "simple", "batch", "Balanced"));
-  const [databricksResult, setDatabricksResult] = useState<SizingResult>(calculateDatabricks(1, 20, "simple", "batch", "Balanced"));
+  // Advanced Parameters
+  const [peakUsageMultiplier, setPeakUsageMultiplier] = useState([savedState.peakUsageMultiplier || 1.5]);
+  const [slaRequirement, setSLARequirement] = useState<SLARequirement>(savedState.slaRequirement || "standard");
+  const [growthRate, setGrowthRate] = useState([savedState.growthRate || 20]);
+  const [dataRetentionDays, setDataRetentionDays] = useState(savedState.dataRetentionDays || 90);
+  const [workloadDistribution, setWorkloadDistribution] = useState<WorkloadDistribution>(
+    savedState.workloadDistribution || { olap: 50, oltp: 20, etl: 20, ml: 5, realtime: 5 }
+  );
+
+  // Results
+  const [fabricResult, setFabricResult] = useState<SizingResult | null>(null);
+  const [synapseResult, setSynapseResult] = useState<SizingResult | null>(null);
+  const [databricksResult, setDatabricksResult] = useState<SizingResult | null>(null);
 
   const handleDataVolumeChange = (value: number[]) => {
     setDataVolumeGB(value);
@@ -242,11 +475,33 @@ export default function Calculator() {
     }
   };
 
+  const handleWorkloadChange = (key: keyof WorkloadDistribution, value: number) => {
+    const updated = { ...workloadDistribution, [key]: value };
+    const total = Object.values(updated).reduce((a, b) => a + b, 0);
+    if (total === 100) {
+      setWorkloadDistribution(updated);
+    }
+  };
+
   useEffect(() => {
     const tbValue = convertToTB(dataVolumeGB[0]);
-    setFabricResult(calculateFabric(tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier));
-    setSynapseResult(calculateSynapse(tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier));
-    setDatabricksResult(calculateDatabricks(tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier));
+    const fabric = calculateFabric(
+      tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier,
+      peakUsageMultiplier[0], slaRequirement, growthRate[0], workloadDistribution
+    );
+    const synapse = calculateSynapse(
+      tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier,
+      peakUsageMultiplier[0], slaRequirement, growthRate[0], workloadDistribution
+    );
+    const databricks = calculateDatabricks(
+      tbValue, concurrency[0], queryComplexity, ingestionType, selectedTier,
+      peakUsageMultiplier[0], slaRequirement, growthRate[0], workloadDistribution
+    );
+    
+    setFabricResult(fabric);
+    setSynapseResult(synapse);
+    setDatabricksResult(databricks);
+    
     // Save state to localStorage
     const state = {
       dataVolumeGB: dataVolumeGB[0],
@@ -254,10 +509,15 @@ export default function Calculator() {
       queryComplexity,
       ingestionType,
       selectedTier,
-      advancedMode
+      advancedMode,
+      peakUsageMultiplier: peakUsageMultiplier[0],
+      slaRequirement,
+      growthRate: growthRate[0],
+      dataRetentionDays,
+      workloadDistribution
     };
     localStorage.setItem('calculatorState', JSON.stringify(state));
-  }, [dataVolumeGB, concurrency, queryComplexity, ingestionType, selectedTier, advancedMode]);
+  }, [dataVolumeGB, concurrency, queryComplexity, ingestionType, selectedTier, advancedMode, peakUsageMultiplier, slaRequirement, growthRate, dataRetentionDays, workloadDistribution]);
 
   const handleExport = async () => {
     const element = document.getElementById("calculator-results");
@@ -271,7 +531,7 @@ export default function Calculator() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save("dwh-sizing-report-fluid.pdf");
+      pdf.save("dwh-sizing-report-comprehensive.pdf");
     }
   };
 
@@ -295,7 +555,7 @@ export default function Calculator() {
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400">
               <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
-              v2.1 Live
+              v3.0 Advanced
             </div>
             <Button variant="outline" size="sm" className="border-white/10 hover:bg-white/5 text-slate-300" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" /> Export Report
@@ -315,12 +575,16 @@ export default function Calculator() {
                 Configuration
               </h2>
               <div className="flex items-center gap-2">
-                <Label htmlFor="advanced-mode" className="text-xs font-bold uppercase text-slate-400 cursor-pointer">Advanced</Label>
+                <Tooltip text="Enable advanced sizing parameters for more accurate recommendations">
+                  <Label htmlFor="advanced-mode" className="text-xs font-bold uppercase text-slate-400 cursor-pointer flex items-center gap-1">
+                    Advanced <HelpCircle size={12} />
+                  </Label>
+                </Tooltip>
                 <Switch id="advanced-mode" checked={advancedMode} onCheckedChange={setAdvancedMode} className="data-[state=checked]:bg-teal-500" />
               </div>
             </div>
             
-            {/* Data Volume Slider */}
+            {/* Basic Parameters */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <Label className="text-sm font-medium text-slate-300">Data Volume</Label>
@@ -345,10 +609,10 @@ export default function Calculator() {
                 />
                 <span className="px-3 py-2 rounded-lg bg-slate-900/50 border border-white/10 text-slate-400 font-mono text-sm flex items-center">GB</span>
               </div>
-              <p className="text-xs text-slate-500">Total compressed data stored in OneLake/ADLS. Enter value in GB (e.g., 100 for 100GB, 1024 for 1TB).</p>
+              <p className="text-xs text-slate-500">Total compressed data stored. Enter value in GB (e.g., 100 for 100GB, 1024 for 1TB).</p>
             </div>
 
-            {/* Concurrency Slider */}
+            {/* Concurrent Users */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <Label className="text-sm font-medium text-slate-300">Concurrent Users</Label>
@@ -364,35 +628,151 @@ export default function Calculator() {
               <p className="text-xs text-slate-500">Active users running queries simultaneously.</p>
             </div>
 
-            {/* Advanced Options */}
+            {/* Basic Advanced Options */}
             {advancedMode && (
               <div className="space-y-6 pt-6 border-t border-white/10 animate-accordion-down overflow-hidden">
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium text-slate-300">Query Complexity</Label>
-                  <RadioGroup value={queryComplexity} onValueChange={(v) => setQueryComplexity(v as QueryComplexity)} className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
-                      <RadioGroupItem value="simple" id="simple" />
-                      <Label htmlFor="simple" className="cursor-pointer text-sm text-slate-300">Simple</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
-                      <RadioGroupItem value="complex" id="complex" />
-                      <Label htmlFor="complex" className="cursor-pointer text-sm text-slate-300">Complex</Label>
-                    </div>
+                  <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    Query Complexity
+                    <Tooltip text="Simple: Basic aggregations, Moderate: Joins and subqueries, Complex: Window functions and CTEs">
+                      <HelpCircle size={14} className="text-slate-500" />
+                    </Tooltip>
+                  </Label>
+                  <RadioGroup value={queryComplexity} onValueChange={(v) => setQueryComplexity(v as QueryComplexity)} className="grid grid-cols-3 gap-2">
+                    {(["simple", "moderate", "complex"] as const).map((level) => (
+                      <div key={level} className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                        <RadioGroupItem value={level} id={level} />
+                        <Label htmlFor={level} className="cursor-pointer text-sm text-slate-300 capitalize">{level}</Label>
+                      </div>
+                    ))}
                   </RadioGroup>
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium text-slate-300">Ingestion Type</Label>
-                  <RadioGroup value={ingestionType} onValueChange={(v) => setIngestionType(v as IngestionType)} className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
-                      <RadioGroupItem value="batch" id="batch" />
-                      <Label htmlFor="batch" className="cursor-pointer text-sm text-slate-300">Batch</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
-                      <RadioGroupItem value="streaming" id="streaming" />
-                      <Label htmlFor="streaming" className="cursor-pointer text-sm text-slate-300">Streaming</Label>
-                    </div>
+                  <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    Data Refresh Frequency
+                    <Tooltip text="Batch: Daily, Hourly: Every hour, Real-time: Continuous, On-demand: As needed">
+                      <HelpCircle size={14} className="text-slate-500" />
+                    </Tooltip>
+                  </Label>
+                  <RadioGroup value={ingestionType} onValueChange={(v) => setIngestionType(v as IngestionType)} className="grid grid-cols-2 gap-2">
+                    {(["batch", "hourly", "realtime", "ondemand"] as const).map((type) => (
+                      <div key={type} className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                        <RadioGroupItem value={type} id={type} />
+                        <Label htmlFor={type} className="cursor-pointer text-sm text-slate-300 capitalize">{type}</Label>
+                      </div>
+                    ))}
                   </RadioGroup>
+                </div>
+
+                {/* Peak Usage Multiplier */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                      Peak Usage Multiplier
+                      <Tooltip text="Factor for peak vs. average usage (1x = average, 5x = extreme peaks)">
+                        <HelpCircle size={14} className="text-slate-500" />
+                      </Tooltip>
+                    </Label>
+                    <span className="text-sm font-bold text-teal-300">{peakUsageMultiplier[0].toFixed(1)}x</span>
+                  </div>
+                  <Slider
+                    value={peakUsageMultiplier}
+                    onValueChange={setPeakUsageMultiplier}
+                    min={1}
+                    max={5}
+                    step={0.1}
+                    className="py-4"
+                  />
+                </div>
+
+                {/* SLA Requirement */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    SLA Requirement
+                    <Tooltip text="Service level agreement: Best-effort (80%), Standard (100%), Premium (130%), Mission-critical (160%)">
+                      <HelpCircle size={14} className="text-slate-500" />
+                    </Tooltip>
+                  </Label>
+                  <RadioGroup value={slaRequirement} onValueChange={(v) => setSLARequirement(v as SLARequirement)} className="grid grid-cols-2 gap-2">
+                    {(["best-effort", "standard", "premium", "mission-critical"] as const).map((sla) => (
+                      <div key={sla} className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                        <RadioGroupItem value={sla} id={sla} />
+                        <Label htmlFor={sla} className="cursor-pointer text-xs text-slate-300 capitalize">{sla.replace("-", " ")}</Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+
+                {/* Growth Rate */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                      Annual Growth Rate
+                      <Tooltip text="Plan for future capacity needs (0-100% annual growth)">
+                        <HelpCircle size={14} className="text-slate-500" />
+                      </Tooltip>
+                    </Label>
+                    <span className="text-sm font-bold text-indigo-300">{growthRate[0]}%</span>
+                  </div>
+                  <Slider
+                    value={growthRate}
+                    onValueChange={setGrowthRate}
+                    min={0}
+                    max={100}
+                    step={5}
+                    className="py-4"
+                  />
+                </div>
+
+                {/* Data Retention */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    Data Retention Period
+                    <Tooltip text="How long to retain historical data (affects storage requirements)">
+                      <HelpCircle size={14} className="text-slate-500" />
+                    </Tooltip>
+                  </Label>
+                  <select 
+                    value={dataRetentionDays} 
+                    onChange={(e) => setDataRetentionDays(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900/50 border border-white/10 text-white focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
+                  >
+                    <option value={30}>30 days</option>
+                    <option value={90}>90 days</option>
+                    <option value={180}>180 days</option>
+                    <option value={365}>1 year</option>
+                    <option value={730}>2 years</option>
+                  </select>
+                </div>
+
+                {/* Workload Distribution */}
+                <div className="space-y-3 pt-4 border-t border-white/10">
+                  <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    Workload Distribution
+                    <Tooltip text="Percentage breakdown of different workload types">
+                      <HelpCircle size={14} className="text-slate-500" />
+                    </Tooltip>
+                  </Label>
+                  <div className="space-y-2 text-xs">
+                    {(["olap", "oltp", "etl", "ml", "realtime"] as const).map((type) => (
+                      <div key={type} className="flex items-center gap-2">
+                        <label className="w-16 text-slate-400 capitalize">{type}</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={workloadDistribution[type]}
+                          onChange={(e) => handleWorkloadChange(type, parseInt(e.target.value))}
+                          className="flex-1"
+                        />
+                        <span className="w-10 text-right font-mono text-teal-300">{workloadDistribution[type]}%</span>
+                      </div>
+                    ))}
+                    <div className="text-slate-500 text-right">
+                      Total: {Object.values(workloadDistribution).reduce((a, b) => a + b, 0)}%
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -423,29 +803,33 @@ export default function Calculator() {
               ))}
             </div>
             <p className="text-xs text-slate-400">
-              {selectedTier === "Minimum" && "Cost-effective option with basic performance. Suitable for non-critical workloads."}
-              {selectedTier === "Balanced" && "Recommended option balancing cost and performance. Suitable for most workloads."}
-              {selectedTier === "Performance" && "Premium option with maximum performance. Suitable for mission-critical workloads."}
+              {selectedTier === "Minimum" && "Cost-effective option with basic performance. Suitable for non-critical workloads and POCs."}
+              {selectedTier === "Balanced" && "Recommended option balancing cost and performance. Suitable for most production workloads."}
+              {selectedTier === "Performance" && "Premium option with maximum performance. Suitable for mission-critical workloads with strict SLAs."}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-            <ResultCard title="Microsoft Fabric" result={fabricResult} icon={Sparkles} />
-            <ResultCard title="Azure Synapse" result={synapseResult} icon={Activity} />
-            <ResultCard title="Databricks" result={databricksResult} icon={Zap} />
-          </div>
+          {/* Results Cards */}
+          {fabricResult && synapseResult && databricksResult && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+              <ResultCard title="Microsoft Fabric" result={fabricResult} icon={Sparkles} />
+              <ResultCard title="Azure Synapse" result={synapseResult} icon={Activity} />
+              <ResultCard title="Databricks" result={databricksResult} icon={Zap} />
+            </div>
+          )}
           
           <div className="glass-panel rounded-xl p-6 flex items-start gap-4 border-l-4 border-l-teal-500">
             <div className="p-2 bg-teal-500/10 rounded-full">
               <Info className="h-5 w-5 text-teal-400" />
             </div>
             <div>
-              <h4 className="font-bold text-white mb-1">Sizing Recommendation Logic</h4>
+              <h4 className="font-bold text-white mb-1">Advanced Sizing Considerations</h4>
               <p className="text-sm text-slate-400 leading-relaxed">
-                These estimates are based on standard performance benchmarks. 
-                {advancedMode && queryComplexity === 'complex' && " Complex query modifier (+50% compute) applied."}
-                {advancedMode && ingestionType === 'streaming' && " Streaming ingestion buffer (+20-30%) included."}
-                {" "}Actual production requirements may vary based on data skew, caching efficiency, and specific workload patterns.
+                These recommendations incorporate {advancedMode ? "all advanced parameters including peak usage multiplier, SLA requirements, growth projections, and workload distribution." : "standard performance benchmarks."}
+                {advancedMode && queryComplexity !== 'simple' && ` Query complexity modifier (${getComplexityMultiplier(queryComplexity)}x) applied.`}
+                {advancedMode && ingestionType !== 'batch' && ` Ingestion frequency modifier (${getIngestionMultiplier(ingestionType).toFixed(2)}x) included.`}
+                {advancedMode && peakUsageMultiplier[0] !== 1 && ` Peak usage multiplier (${peakUsageMultiplier[0].toFixed(1)}x) factored in.`}
+                Actual production requirements may vary based on data skew, query patterns, and specific use cases.
               </p>
             </div>
           </div>
