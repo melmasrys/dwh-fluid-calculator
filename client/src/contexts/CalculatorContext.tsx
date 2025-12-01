@@ -40,7 +40,18 @@ export function CalculatorProvider({ children }: { children: React.ReactNode }) 
 export function useCalculator() {
   const context = useContext(CalculatorContext);
   if (!context) {
-    throw new Error('useCalculator must be used within CalculatorProvider');
+    // Return default state if context is not available
+    return {
+      state: {
+        dataVolumeGB: 1024,
+        concurrency: 20,
+        selectedTier: "Balanced" as const,
+        queryComplexity: "simple" as const,
+        ingestionType: "batch" as const,
+        advancedMode: false,
+      },
+      updateState: () => {}
+    };
   }
   return context;
 }
