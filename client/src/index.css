@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-heading: "Outfit", sans-serif;
+  --font-mono: "DM Mono", monospace;
+
+  --radius-lg: 1rem;
+  --radius-md: 0.75rem;
+  --radius-sm: 0.5rem;
+
+  --color-background: #0f172a; /* Slate 900 */
+  --color-foreground: #f8fafc; /* Slate 50 */
+
+  --color-card: rgba(30, 41, 59, 0.7); /* Slate 800 with opacity */
+  --color-card-foreground: #f8fafc;
+
+  --color-popover: #1e293b;
+  --color-popover-foreground: #f8fafc;
+
+  --color-primary: #2dd4bf; /* Teal 400 */
+  --color-primary-foreground: #0f172a;
+
+  --color-secondary: #6366f1; /* Indigo 500 */
+  --color-secondary-foreground: #ffffff;
+
+  --color-muted: #334155;
+  --color-muted-foreground: #94a3b8;
+
+  --color-accent: #2dd4bf;
+  --color-accent-foreground: #0f172a;
+
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+
+  --color-border: rgba(148, 163, 184, 0.2);
+  --color-input: rgba(148, 163, 184, 0.2);
+  --color-ring: #2dd4bf;
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-float: float 6s ease-in-out infinite;
+
+  @keyframes accordion-down {
+    from { height: 0 }
+    to { height: var(--radix-accordion-content-height) }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height) }
+    to { height: 0 }
+  }
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+    100% { transform: translateY(0px); }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(45, 212, 191, 0.15), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(99, 102, 241, 0.15), transparent 25%);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-bold tracking-tight;
+  }
+}
+
+@utility glass-panel {
+  @apply bg-card backdrop-blur-md border border-white/10 shadow-xl;
+}
+
+@utility text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-indigo-400;
+}
