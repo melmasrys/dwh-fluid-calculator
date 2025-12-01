@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowRight, Info, Check, Download, Settings2, Sparkles, Zap, Activity } from "lucide-react";
+import { ArrowRight, Info, Check, Download, Settings2, Sparkles, Zap, Activity, Input } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
@@ -191,22 +191,51 @@ const ResultCard = ({ title, result, icon: Icon }: { title: string, result: Sizi
   </div>
 );
 
+// Helper function to convert GB to TB for display
+const formatDataVolume = (gb: number): string => {
+  if (gb >= 1024) {
+    return `${(gb / 1024).toFixed(2)} TB`;
+  }
+  return `${gb} GB`;
+};
+
+// Helper function to convert display value to TB for calculations
+const convertToTB = (gb: number): number => {
+  return gb / 1024;
+};
+
 export default function Calculator() {
-  const [dataVolume, setDataVolume] = useState([50]);
+  const [dataVolumeGB, setDataVolumeGB] = useState([1024]); // 1 TB in GB
   const [concurrency, setConcurrency] = useState([20]);
   const [advancedMode, setAdvancedMode] = useState(false);
   const [queryComplexity, setQueryComplexity] = useState<QueryComplexity>("simple");
   const [ingestionType, setIngestionType] = useState<IngestionType>("batch");
+  const [dataVolumeInput, setDataVolumeInput] = useState("1024");
 
-  const [fabricResult, setFabricResult] = useState<SizingResult>(calculateFabric(50, 20, "simple", "batch"));
-  const [synapseResult, setSynapseResult] = useState<SizingResult>(calculateSynapse(50, 20, "simple", "batch"));
-  const [databricksResult, setDatabricksResult] = useState<SizingResult>(calculateDatabricks(50, 20, "simple", "batch"));
+  const [fabricResult, setFabricResult] = useState<SizingResult>(calculateFabric(1, 20, "simple", "batch"));
+  const [synapseResult, setSynapseResult] = useState<SizingResult>(calculateSynapse(1, 20, "simple", "batch"));
+  const [databricksResult, setDatabricksResult] = useState<SizingResult>(calculateDatabricks(1, 20, "simple", "batch"));
+
+  const handleDataVolumeChange = (value: number[]) => {
+    setDataVolumeGB(value);
+    setDataVolumeInput(value[0].toString());
+  };
+
+  const handleDataVolumeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDataVolumeInput(value);
+    const numValue = parseInt(value) || 0;
+    if (numValue > 0 && numValue <= 512000) {
+      setDataVolumeGB([numValue]);
+    }
+  };
 
   useEffect(() => {
-    setFabricResult(calculateFabric(dataVolume[0], concurrency[0], queryComplexity, ingestionType));
-    setSynapseResult(calculateSynapse(dataVolume[0], concurrency[0], queryComplexity, ingestionType));
-    setDatabricksResult(calculateDatabricks(dataVolume[0], concurrency[0], queryComplexity, ingestionType));
-  }, [dataVolume, concurrency, queryComplexity, ingestionType]);
+    const tbValue = convertToTB(dataVolumeGB[0]);
+    setFabricResult(calculateFabric(tbValue, concurrency[0], queryComplexity, ingestionType));
+    setSynapseResult(calculateSynapse(tbValue, concurrency[0], queryComplexity, ingestionType));
+    setDatabricksResult(calculateDatabricks(tbValue, concurrency[0], queryComplexity, ingestionType));
+  }, [dataVolumeGB, concurrency, queryComplexity, ingestionType]);
 
   const handleExport = async () => {
     const element = document.getElementById("calculator-results");
@@ -273,16 +302,28 @@ export default function Calculator() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <Label className="text-sm font-medium text-slate-300">Data Volume</Label>
-                <span className="text-lg font-bold font-mono text-teal-300 bg-teal-500/10 px-3 py-1 rounded-md border border-teal-500/20">{dataVolume[0]} TB</span>
+                <span className="text-lg font-bold font-mono text-teal-300 bg-teal-500/10 px-3 py-1 rounded-md border border-teal-500/20">{formatDataVolume(dataVolumeGB[0])}</span>
               </div>
               <Slider
-                value={dataVolume}
-                onValueChange={setDataVolume}
-                max={500}
-                step={10}
+                value={dataVolumeGB}
+                onValueChange={handleDataVolumeChange}
+                max={512000}
+                step={1}
                 className="py-4"
               />
-              <p className="text-xs text-slate-500">Total compressed data stored in OneLake/ADLS.</p>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="512000"
+                  value={dataVolumeInput}
+                  onChange={handleDataVolumeInputChange}
+                  placeholder="Enter value in GB"
+                  className="flex-1 px-3 py-2 rounded-lg bg-slate-900/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
+                />
+                <span className="px-3 py-2 rounded-lg bg-slate-900/50 border border-white/10 text-slate-400 font-mono text-sm flex items-center">GB</span>
+              </div>
+              <p className="text-xs text-slate-500">Total compressed data stored in OneLake/ADLS. Enter value in GB (e.g., 100 for 100GB, 1024 for 1TB).</p>
             </div>
 
             {/* Concurrency Slider */}
