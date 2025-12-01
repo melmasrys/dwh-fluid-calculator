@@ -242,6 +242,48 @@ export default function ComparisonPage() {
                 </tr>
               </thead>
               <tbody>
+                <tr>
+                  <td className="feature-name">Compute Cores</td>
+                  <td className="fabric-col">{fabricResult.cores} vCores</td>
+                  <td className="synapse-col">{synapseResult.cores} vCores</td>
+                  <td className="databricks-col">{databricksResult.cores} vCores</td>
+                </tr>
+                <tr>
+                  <td className="feature-name">Memory</td>
+                  <td className="fabric-col">{fabricResult.memory}</td>
+                  <td className="synapse-col">{synapseResult.memory}</td>
+                  <td className="databricks-col">{databricksResult.memory}</td>
+                </tr>
+                <tr>
+                  <td className="feature-name">Monthly Cost</td>
+                  <td className="fabric-col">${fabricResult.cost.toLocaleString()}</td>
+                  <td className="synapse-col">${synapseResult.cost.toLocaleString()}</td>
+                  <td className="databricks-col">${databricksResult.cost.toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td className="feature-name">Data Volume Support</td>
+                  <td className="fabric-col">{formatDataVolume(dataVolumeGB)}</td>
+                  <td className="synapse-col">{formatDataVolume(dataVolumeGB)}</td>
+                  <td className="databricks-col">{formatDataVolume(dataVolumeGB)}</td>
+                </tr>
+                <tr>
+                  <td className="feature-name">Concurrent Users</td>
+                  <td className="fabric-col">{concurrency}</td>
+                  <td className="synapse-col">{concurrency}</td>
+                  <td className="databricks-col">{concurrency}</td>
+                </tr>
+                <tr>
+                  <td className="feature-name">Sizing Tier</td>
+                  <td className="fabric-col">{selectedTier}</td>
+                  <td className="synapse-col">{selectedTier}</td>
+                  <td className="databricks-col">{selectedTier}</td>
+                </tr>
+                <tr>
+                  <td className="feature-name">Query Complexity</td>
+                  <td className="fabric-col">{formatQueryComplexity(queryComplexity)}</td>
+                  <td className="synapse-col">{formatQueryComplexity(queryComplexity)}</td>
+                  <td className="databricks-col">{formatQueryComplexity(queryComplexity)}</td>
+                </tr>
                 {TECHNICAL_SPECIFICATIONS.map((row, idx) => (
                   <tr key={idx}>
                     <td className="feature-name">{row.feature}</td>
